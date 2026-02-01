@@ -1,0 +1,217 @@
+{
+    "name": "El Operador - Silent Observer",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 6
+                        }
+                    ]
+                }
+            },
+            "id": "trigger-schedule",
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                0,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "message",
+                "filters": {
+                    "q": "is:unread newer_than:1d"
+                },
+                "options": {
+                    "maxResults": 50
+                }
+            },
+            "id": "gmail-search",
+            "name": "Gmail Search",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [
+                220,
+                0
+            ],
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "YOUR_GMAIL_CREDENTIAL_ID",
+                    "name": "Gmail account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "event",
+                "options": {
+                    "timeMin": "={{ $now.toISO() }}",
+                    "timeMax": "={{ $now.plus({days: 7}).toISO() }}",
+                    "maxResults": 20
+                }
+            },
+            "id": "calendar-search",
+            "name": "Calendar Events",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                220,
+                200
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "YOUR_CALENDAR_CREDENTIAL_ID",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Pattern Detection Logic for El Operador\nconst emails = $input.first().json;\nconst patterns = {\n  detected: [],\n  summary: {\n    total_emails: 0,\n    unique_senders: 0,\n    repeated_senders: [],\n    repeated_subjects: []\n  }\n};\n\nif (Array.isArray(emails)) {\n  patterns.summary.total_emails = emails.length;\n  \n  // Count senders\n  const senderCount = {};\n  const subjectCount = {};\n  \n  emails.forEach(email => {\n    const sender = email.from || 'unknown';\n    const subject = email.subject || 'no-subject';\n    \n    senderCount[sender] = (senderCount[sender] || 0) + 1;\n    subjectCount[subject] = (subjectCount[subject] || 0) + 1;\n  });\n  \n  // Find patterns (3+ occurrences)\n  for (const [sender, count] of Object.entries(senderCount)) {\n    if (count >= 3) {\n      patterns.summary.repeated_senders.push({ sender, count });\n      patterns.detected.push({\n        type: 'repeated_sender',\n        value: sender,\n        count: count,\n        suggestion: `Correo de ${sender} aparece ${count} veces. ¿Crear regla?`\n      });\n    }\n  }\n  \n  patterns.summary.unique_senders = Object.keys(senderCount).length;\n}\n\nreturn [{ json: patterns }];"
+            },
+            "id": "pattern-detector",
+            "name": "Pattern Detector",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                440,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-patterns",
+                            "leftValue": "={{ $json.detected.length }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "has-patterns",
+            "name": "Has Patterns?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                660,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Format report for El Operador\nconst data = $input.first().json;\nconst now = new Date().toISOString();\n\nconst report = {\n  agent: 'El Operador',\n  version: 'v0.3',\n  timestamp: now,\n  mode: 'Silent Observer',\n  status: 'patterns_detected',\n  findings: data.detected.map(p => ({\n    observation: p.suggestion,\n    impact: 'bajo',\n    risk: 'bajo',\n    options: ['A) Seguir observando', 'B) Crear regla', 'C) Ignorar']\n  })),\n  summary: data.summary,\n  next_check: new Date(Date.now() + 6*60*60*1000).toISOString()\n};\n\nreturn [{ json: report }];"
+            },
+            "id": "format-report",
+            "name": "Format Report",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                880,
+                -100
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// No patterns found - silent log\nconst now = new Date().toISOString();\n\nreturn [{ json: {\n  agent: 'El Operador',\n  timestamp: now,\n  mode: 'Silent Observer',\n  status: 'no_patterns',\n  message: 'Observación completada. Sin patrones significativos.',\n  next_check: new Date(Date.now() + 6*60*60*1000).toISOString()\n}}];"
+            },
+            "id": "silent-log",
+            "name": "Silent Log",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                880,
+                100
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Gmail Search",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Calendar Events",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gmail Search": {
+            "main": [
+                [
+                    {
+                        "node": "Pattern Detector",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Pattern Detector": {
+            "main": [
+                [
+                    {
+                        "node": "Has Patterns?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Has Patterns?": {
+            "main": [
+                [
+                    {
+                        "node": "Format Report",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Silent Log",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [
+        "El Operador",
+        "Gmail",
+        "Pattern Detection"
+    ],
+    "triggerCount": 1,
+    "meta": {
+        "instanceId": "local",
+        "templateCredsSetupCompleted": false
+    }
+}

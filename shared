@@ -1,0 +1,54 @@
+import asyncio
+import httpx
+
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+async def main():
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmNDI1ODIxNC1jMDM5LTQwYTctYWMzYy01MWQxZTBiNWY0ZTgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5ODMwMTc4fQ.ptyrZ_3zxYioT8wt_DE0BarK5QSRjAmYNdHs_fFaHgI"
+    }
+
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=None  # ← SIN TIMEOUT PARA STREAM
+    ) as http_client:
+
+        async with streamable_http_client(
+            "https://eco.dxarte.org/mcp-server/http",
+            http_client=http_client,
+        ) as (read, write, close):
+
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+
+                import sys
+                if sys.platform == "win32":
+                    import io
+                    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+                print("\n[OK] Conectado al MCP de n8n\n")
+
+                tools = await session.list_tools()
+                print(f"🧰 {len(tools.tools)} Tools disponibles:")
+                for t in tools.tools:
+                    print(f"  - {t.name}: {t.description}")
+
+                if not tools.tools:
+                    print("⚠️ No hay workflows MCP publicados")
+                    return
+
+                tool_name = tools.tools[0].name
+                print(f"\n▶ Ejecutando: {tool_name}")
+
+                result = await session.call_tool(
+                    tool_name,
+                    arguments={
+                        "input": "Hola desde antigravity"
+                    }
+                )
+
+                print("\n📤 Resultado:")
+                print(result)
+
+asyncio.run(main())

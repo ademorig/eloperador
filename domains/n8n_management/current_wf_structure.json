@@ -1,0 +1,203 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "radiology-mcp",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "MCP Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b5461b98-0641-44ce-aab0-be268817a9cc",
+      "webhookId": "db2e350e-8fb1-4d61-8d97-22168f943085"
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "calendar": "primary"
+      },
+      "name": "Google Calendar Search",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        208,
+        -48
+      ],
+      "id": "487a8360-77ea-4112-ad64-20ba56e8acd8",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "70NbzbTcPExxryMN",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "limit": 500,
+        "filters": {
+          "q": "label:inbox"
+        }
+      },
+      "name": "Gmail Search",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        208,
+        160
+      ],
+      "id": "1d7ad19c-9be1-4322-8678-7db2307b1a47",
+      "webhookId": "bc0b15b3-a907-4ab3-bbe2-81d83da0c4c2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvq4vOWbvQhrvvi",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return { summary: 'Se ha iniciado el borrado de los 200 correos m\u00e1s antiguos.' };"
+      },
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        464,
+        64
+      ],
+      "id": "9b10c195-17de-41b5-a9a2-65c40e743c40"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 500,
+        "filters": {
+          "q": "label:inbox"
+        }
+      },
+      "id": "gmail-get-batch-unique",
+      "name": "Gmail Get Batch",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        200,
+        100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvq4vOWbvQhrvvi",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().reverse().slice(0, 200);"
+      },
+      "id": "code-sort-batch-unique",
+      "name": "Pick 200 Oldest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        400,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "delete",
+        "messageId": "={{$json.id}}"
+      },
+      "id": "gmail-delete-batch-unique",
+      "name": "Delete Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        600,
+        100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvq4vOWbvQhrvvi",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "MCP Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gmail Get Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar Search": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Search": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Get Batch": {
+      "main": [
+        [
+          {
+            "node": "Pick 200 Oldest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick 200 Oldest": {
+      "main": [
+        [
+          {
+            "node": "Delete Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

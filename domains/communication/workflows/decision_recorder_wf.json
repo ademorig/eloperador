@@ -1,0 +1,162 @@
+{
+    "name": "El Operador - Decision Recorder",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "operador/decision",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-decision",
+            "name": "Decision Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                0
+            ],
+            "webhookId": "operador-decision-recorder"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parse and validate decision input\nconst body = $input.first().json.body;\n\nconst required = ['contexto', 'propuesta', 'decision'];\nfor (const field of required) {\n  if (!body[field]) {\n    throw new Error(`Campo requerido: ${field}`);\n  }\n}\n\nconst validDecisions = ['sí', 'no', 'después', 'modificar'];\nif (!validDecisions.includes(body.decision)) {\n  throw new Error(`Decisión inválida. Use: ${validDecisions.join(', ')}`);\n}\n\nreturn [{ json: {\n  timestamp: new Date().toISOString(),\n  contexto: body.contexto,\n  propuesta: body.propuesta,\n  decision_usuario: body.decision,\n  razon_inferida: body.razon || null,\n  patrón_aprendido: null\n}}];"
+            },
+            "id": "validate-input",
+            "name": "Validate Input",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "read",
+                "filePath": "operador/decision_log.json",
+                "options": {}
+            },
+            "id": "read-memory",
+            "name": "Read Memory",
+            "type": "n8n-nodes-base.readWriteFile",
+            "typeVersion": 1,
+            "position": [
+                440,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Update memory with new decision\nconst newDecision = $('Validate Input').first().json;\nlet memory;\n\ntry {\n  memory = JSON.parse($('Read Memory').first().json.data);\n} catch {\n  memory = {\n    version: '1.0',\n    agent: 'El Operador',\n    created: new Date().toISOString(),\n    decisions: [],\n    learned_patterns: {\n      email_preferences: [],\n      calendar_preferences: [],\n      automation_style: null,\n      communication_frequency: 'default'\n    },\n    statistics: {\n      total_proposals: 0,\n      accepted: 0,\n      rejected: 0,\n      deferred: 0,\n      modified: 0\n    }\n  };\n}\n\n// Update statistics\nmemory.statistics.total_proposals++;\n\nswitch (newDecision.decision_usuario) {\n  case 'sí': memory.statistics.accepted++; break;\n  case 'no': memory.statistics.rejected++; break;\n  case 'después': memory.statistics.deferred++; break;\n  case 'modificar': memory.statistics.modified++; break;\n}\n\n// Detect patterns (rule of 3)\nconst keywords = new Set(newDecision.propuesta.toLowerCase().split(' '));\nlet similarRejections = 0;\n\nfor (const d of memory.decisions.slice(-20)) {\n  const dKeywords = new Set(d.propuesta.toLowerCase().split(' '));\n  const intersection = [...keywords].filter(x => dKeywords.has(x));\n  const overlap = intersection.length / Math.max(keywords.size, 1);\n  \n  if (overlap > 0.5 && d.decision_usuario === 'no') {\n    similarRejections++;\n  }\n}\n\nif (similarRejections >= 2 && newDecision.decision_usuario === 'no') {\n  newDecision.patrón_aprendido = `Usuario rechaza: ${newDecision.propuesta.substring(0, 50)}...`;\n  memory.learned_patterns.email_preferences.push(newDecision.patrón_aprendido);\n}\n\n// Add decision\nmemory.decisions.push(newDecision);\n\n// Keep last 100 decisions\nif (memory.decisions.length > 100) {\n  memory.decisions = memory.decisions.slice(-100);\n}\n\nreturn [{ json: { memory, newDecision } }];"
+            },
+            "id": "update-memory",
+            "name": "Update Memory",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                660,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "write",
+                "filePath": "operador/decision_log.json",
+                "fileContent": "={{ JSON.stringify($json.memory, null, 2) }}",
+                "options": {}
+            },
+            "id": "write-memory",
+            "name": "Write Memory",
+            "type": "n8n-nodes-base.readWriteFile",
+            "typeVersion": 1,
+            "position": [
+                880,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify({ success: true, agent: 'El Operador', recorded: $('Update Memory').first().json.newDecision, statistics: $('Update Memory').first().json.memory.statistics }) }}",
+                "options": {}
+            },
+            "id": "respond-success",
+            "name": "Respond Success",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1100,
+                0
+            ]
+        }
+    ],
+    "connections": {
+        "Decision Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Input": {
+            "main": [
+                [
+                    {
+                        "node": "Read Memory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Memory": {
+            "main": [
+                [
+                    {
+                        "node": "Update Memory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update Memory": {
+            "main": [
+                [
+                    {
+                        "node": "Write Memory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Write Memory": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Success",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "El Operador",
+        "Memory",
+        "Decision Log"
+    ],
+    "meta": {
+        "instanceId": "local"
+    }
+}

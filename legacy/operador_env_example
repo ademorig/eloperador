@@ -1,0 +1,15 @@
+# Configuración de Despliegue - El Operador
+# Copia este archivo a .env y rellena con tus valores reales
+# NO subas el archivo .env real al repositorio
+
+# Ruta local del proyecto (usualmente . para el directorio actual)
+PROJ_DIR=.
+
+# Configuración SSH
+SSH_KEY_PATH=C:/Users/tu_usuario/.ssh/id_ed25519
+REMOTE_USER=operador
+REMOTE_HOST=10.0.0.1
+REMOTE_PORT=22
+
+# Ruta en el servidor remoto
+REMOTE_PATH=/home/operador/operador

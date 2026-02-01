@@ -1,0 +1,115 @@
+import os
+import asyncio
+import httpx
+import json
+from dotenv import load_dotenv
+from pathlib import Path
+from datetime import datetime
+
+# Load credentials
+BASE_DIR = Path(__file__).parent
+ROOT_DIR = BASE_DIR.parent.parent
+load_dotenv(ROOT_DIR / ".env")
+
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+API_URL = f"https://api.telegram.org/bot{TOKEN}"
+
+DASHBOARD_PORT = os.getenv("DASHBOARD_PORT", "3847")
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "localhost")
+DASHBOARD_API = f"http://{DASHBOARD_HOST}:{DASHBOARD_PORT}/api/telegram/callback"
+
+async def answer_callback(callback_query_id: str):
+    async with httpx.AsyncClient() as client:
+        await client.post(f"{API_URL}/answerCallbackQuery", json={
+            "callback_query_id": callback_query_id
+        })
+
+async def process_decision(callback_data: str, chat_id: int, message_id: int, original_text: str):
+    # Call the dashboard API to record and get confirmation text
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(DASHBOARD_API, json={
+                "callback_data": callback_data,
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "propuesta": original_text
+            })
+            return response.json()
+        except Exception as e:
+            print(f"Error calling dashboard API: {e}")
+            return None
+
+async def update_message(chat_id: int, message_id: int, text: str):
+    async with httpx.AsyncClient() as client:
+        await client.post(f"{API_URL}/editMessageText", json={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": "Markdown"
+        })
+
+async def send_text_message(chat_id: int, text: str):
+    """Envía un mensaje de texto simple."""
+    async with httpx.AsyncClient() as client:
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "Markdown"
+        }
+        await client.post(f"{API_URL}/sendMessage", json=payload)
+
+async def bot_listener():
+    print("[*] El Operador - Telegram Listener Activo")
+    offset = 0
+    async with httpx.AsyncClient(timeout=30) as client:
+        while True:
+            try:
+                response = await client.get(f"{API_URL}/getUpdates", params={"offset": offset, "timeout": 20})
+                updates = response.json().get("result", [])
+                
+                for update in updates:
+                    offset = update["update_id"] + 1
+                    
+                    # 1. Manejar clics en botones (Callbacks)
+                    if "callback_query" in update:
+                        cb = update["callback_query"]
+                        cb_id = cb["id"]
+                        cb_data = cb["data"]
+                        msg = cb["message"]
+                        chat_id = msg["chat"]["id"]
+                        message_id = msg["message_id"]
+                        original_text = msg.get("text", "").split("\n\n")[0]
+                        
+                        await answer_callback(cb_id)
+                        result = await process_decision(cb_data, chat_id, message_id, original_text)
+                        
+                        if result and "confirmation_text" in result:
+                            final_text = f"{original_text}\n\n{result['confirmation_text']}"
+                            await update_message(chat_id, message_id, final_text)
+                            print(f"[+] Decisión procesada: {cb_data}")
+
+                    # 2. Manejar mensajes de texto
+                    elif "message" in update and "text" in update["message"]:
+                        msg = update["message"]
+                        chat_id = msg["chat"]["id"]
+                        text = msg["text"].lower()
+                        
+                        print(f"[*] Mensaje recibido: {text}")
+                        
+                        if text == "/start":
+                            await send_text_message(chat_id, "¡Hola! Soy *El Operador*. Estoy activo y observando flujos de trabajo. Puedes preguntarme por el `/status` o simplemente esperar a que detecte algo importante.")
+                        elif text == "/status":
+                            await send_text_message(chat_id, "◉ *Estado del Sistema*\n\n✅ Conectado a Telegram\n✅ Listener Activo\n📡 Observando: Gmail & Calendarios\n🏥 Dominio Radiología: Protegido")
+                        else:
+                            await send_text_message(chat_id, "Recibido. He registrado tu mensaje, pero mi lógica de comandos es limitada por ahora. ¿En qué puedo ayudarte con los flujos de trabajo?")
+                            
+            except Exception as e:
+                print(f"Error in listener: {e}")
+                await asyncio.sleep(2)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(bot_listener())
+    except KeyboardInterrupt:
+        print("\n[*] Listener detenido.")

@@ -1,0 +1,10 @@
+{
+  "observations": [
+    {
+      "propuesta": "HALLAZGO REAL: Se detectaron 3 patrones de correos repetitivos de soporte@n8n.io.",
+      "impacto": "bajo",
+      "riesgo": "bajo",
+      "timestamp": "2026-01-31T00:32:53.242414"
+    }
+  ]
+}

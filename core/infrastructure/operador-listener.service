@@ -1,0 +1,22 @@
+[Unit]
+Description=El Operador - Telegram Listener
+After=network.target operador-dashboard.service
+
+[Service]
+Type=simple
+# Security Hardening
+User=operador
+Group=operador
+WorkingDirectory=/home/operador/operador
+ExecStart=/usr/bin/python3 domains/communication/telegram_listener.py
+Restart=always
+RestartSec=5
+
+# Systemd Sandboxing
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

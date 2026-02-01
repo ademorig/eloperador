@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Operador — Dashboard</title>
+    <meta name="description" content="Dashboard read-only del agente persistente El Operador">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="agent-icon">⚙️</div>
+                <div class="agent-info">
+                    <h1 class="agent-name">El Operador</h1>
+                    <span class="agent-version">v0.3 — Silent Observer Mode</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badge" id="status-badge">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Conectando...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tags -->
+        <div class="tags">
+            <span class="tag">Antigravity IDE</span>
+            <span class="tag">Agent-First</span>
+            <span class="tag">Gemini 3 Pro</span>
+            <span class="tag">MCP Ready</span>
+            <span class="tag">Read-Only</span>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">💓</div>
+                <div class="stat-content">
+                    <span class="stat-label">Último Latido</span>
+                    <span class="stat-value" id="last-heartbeat">--</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👁️</div>
+                <div class="stat-content">
+                    <span class="stat-label">Observaciones</span>
+                    <span class="stat-value" id="observations-count">--</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-content">
+                    <span class="stat-label">Ejecuciones</span>
+                    <span class="stat-value" id="runs-count">--</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🧠</div>
+                <div class="stat-content">
+                    <span class="stat-label">Memoria</span>
+                    <span class="stat-value" id="memory-entries">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-grid">
+            <!-- Recent Observations -->
+            <section class="panel observations-panel">
+                <div class="panel-header">
+                    <h2>📌 Observaciones Recientes</h2>
+                    <span class="panel-subtitle">Últimas detecciones del agente</span>
+                </div>
+                <div class="panel-content" id="observations-list">
+                    <div class="empty-state">Cargando observaciones...</div>
+                </div>
+            </section>
+
+            <!-- Execution History -->
+            <section class="panel runs-panel">
+                <div class="panel-header">
+                    <h2>⚡ Historial de Ejecuciones</h2>
+                    <span class="panel-subtitle">Flujos ejecutados</span>
+                </div>
+                <div class="panel-content" id="runs-list">
+                    <div class="empty-state">Cargando historial...</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Memory Panel -->
+        <section class="panel memory-panel">
+            <div class="panel-header">
+                <h2>🧠 Memoria Acumulada</h2>
+                <span class="panel-subtitle">Patrones aprendidos y estadísticas</span>
+            </div>
+            <div class="memory-grid" id="memory-content">
+                <div class="memory-stat">
+                    <span class="memory-label">Tasa de Aceptación</span>
+                    <div class="memory-bar">
+                        <div class="memory-bar-fill" id="acceptance-bar" style="width: 0%"></div>
+                    </div>
+                    <span class="memory-value" id="acceptance-rate">0%</span>
+                </div>
+                <div class="memory-stats-grid">
+                    <div class="mini-stat">
+                        <span class="mini-value" id="stat-accepted">0</span>
+                        <span class="mini-label">✅ Aceptadas</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="mini-value" id="stat-rejected">0</span>
+                        <span class="mini-label">❌ Rechazadas</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="mini-value" id="stat-deferred">0</span>
+                        <span class="mini-label">⏳ Diferidas</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="mini-value" id="stat-modified">0</span>
+                        <span class="mini-label">✏️ Modificadas</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-hint">
+                <span class="footer-icon">💡</span>
+                <p>Este dashboard es <strong>read-only</strong>. El Operador solo observa, no ejecuta acciones desde aquí.</p>
+            </div>
+            <div class="footer-meta">
+                <span id="refresh-time">Actualizado: --</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

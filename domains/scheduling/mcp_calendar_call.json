@@ -1,0 +1,8 @@
+{
+    "tool": "MCP_CheckAndScheduleEvent",
+    "arguments": {
+        "mensaje_texto": "Agenda reunión con el equipo de marketing mañana a las 10am por 1 hora",
+        "usuario": "dr.demori@example.com",
+        "calendario_id": "primary"
+    }
+}

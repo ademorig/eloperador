@@ -1,0 +1,23 @@
+[Unit]
+Description=El Operador - Dashboard Server
+After=network.target
+
+[Service]
+Type=simple
+# Security Hardening
+User=operador
+Group=operador
+WorkingDirectory=/home/operador/operador
+ExecStart=/usr/bin/python3 domains/communication/dashboard_server.py
+Restart=always
+RestartSec=5
+
+# Systemd Sandboxing
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+# Optional: Restrict network if needed, but dashboard likely needs it.
+
+[Install]
+WantedBy=multi-user.target

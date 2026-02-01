@@ -1,0 +1,124 @@
+{
+    "name": "El Operador - Telegram Integration v2",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "operador/telegram/callback",
+                "options": {}
+            },
+            "id": "telegram-webhook",
+            "name": "Telegram Callback",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                0,
+                0
+            ],
+            "webhookId": "operador-telegram-callback"
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:3847/api/telegram/callback",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "callback_data",
+                            "value": "={{ $json.body.callback_query.data }}"
+                        },
+                        {
+                            "name": "chat_id",
+                            "value": "={{ $json.body.callback_query.message.chat.id }}"
+                        },
+                        {
+                            "name": "message_id",
+                            "value": "={{ $json.body.callback_query.message.message_id }}"
+                        },
+                        {
+                            "name": "propuesta",
+                            "value": "={{ $json.body.callback_query.message.text }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "notify-dashboard",
+            "name": "Notify Dashboard",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                220,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_TOKEN }}/editMessageText",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "chat_id",
+                            "value": "={{ $node[\"Telegram Callback\"].json.body.callback_query.message.chat.id }}"
+                        },
+                        {
+                            "name": "message_id",
+                            "value": "={{ $node[\"Telegram Callback\"].json.body.callback_query.message.message_id }}"
+                        },
+                        {
+                            "name": "text",
+                            "value": "={{ $node[\"Telegram Callback\"].json.body.callback_query.message.text.split('\\n\\n')[0] + '\\n\\n' + $node[\"Notify Dashboard\"].json.confirmation_text }}"
+                        },
+                        {
+                            "name": "parse_mode",
+                            "value": "Markdown"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "edit-original",
+            "name": "Edit Original Message",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                440,
+                0
+            ]
+        }
+    ],
+    "connections": {
+        "Telegram Callback": {
+            "main": [
+                [
+                    {
+                        "node": "Notify Dashboard",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Notify Dashboard": {
+            "main": [
+                [
+                    {
+                        "node": "Edit-Original",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": {
+        "instanceId": "local"
+    }
+}

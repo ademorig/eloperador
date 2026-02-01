@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "agent": "El Operador",
+  "created": "2026-01-31",
+  "decisions": [
+    {
+      "timestamp": "2026-01-31T00:45:09.407328",
+      "contexto": "Telegram Alert test",
+      "propuesta": "◉ El Operador",
+      "decision_usuario": "no",
+      "razon_inferida": "Respuesta directa vía Telegram: Decisión registrada: Ignorar por ahora.",
+      "patrón_aprendido": null
+    },
+    {
+      "timestamp": "2026-01-31T00:45:13.894713",
+      "contexto": "Telegram Alert test",
+      "propuesta": "◉ El Operador",
+      "decision_usuario": "después",
+      "razon_inferida": "Respuesta directa vía Telegram: Decisión registrada: Decidir luego.",
+      "patrón_aprendido": null
+    },
+    {
+      "timestamp": "2026-01-31T00:45:18.330914",
+      "contexto": "Telegram Alert test",
+      "propuesta": "◉ El Operador",
+      "decision_usuario": "después",
+      "razon_inferida": "Respuesta directa vía Telegram: Decisión registrada: Decidir luego.",
+      "patrón_aprendido": null
+    },
+    {
+      "timestamp": "2026-01-31T00:45:23.022922",
+      "contexto": "Telegram Alert test",
+      "propuesta": "◉ El Operador",
+      "decision_usuario": "sí",
+      "razon_inferida": "Respuesta directa vía Telegram: Decisión registrada: Preparar automatización.",
+      "patrón_aprendido": null
+    }
+  ],
+  "learned_patterns": {
+    "email_preferences": [],
+    "calendar_preferences": [],
+    "automation_style": null,
+    "communication_frequency": "default"
+  },
+  "statistics": {
+    "total_proposals": 4,
+    "accepted": 1,
+    "rejected": 1,
+    "deferred": 2,
+    "modified": 0
+  }
+}

@@ -1,0 +1,189 @@
+{
+    "name": "Radiology_Shift_Organizer_Agent",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "radiology-shift-mcp",
+                "options": {}
+            },
+            "id": "rad-1",
+            "name": "MCP Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "rad-2",
+            "name": "AI Agent",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.6,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-pro",
+                "options": {}
+            },
+            "id": "rad-gemini",
+            "name": "Google Gemini Chat Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1,
+            "position": [
+                400,
+                500
+            ]
+        },
+        {
+            "parameters": {},
+            "id": "rad-memory",
+            "name": "Window Buffer Memory",
+            "type": "@n8n/n8n-nodes-langchain.memoryWindowBuffer",
+            "typeVersion": 1,
+            "position": [
+                550,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "event",
+                "operation": "list",
+                "calendar": "primary",
+                "filters": {
+                    "timeMin": "={{ $now.startOfDay().toISO() }}",
+                    "timeMax": "={{ $now.endOfDay().toISO() }}"
+                }
+            },
+            "id": "rad-3",
+            "name": "Google Calendar Search",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1,
+            "position": [
+                750,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "message",
+                "operation": "getAll",
+                "filters": {
+                    "q": "is:unread (label:urgent OR STAT)"
+                }
+            },
+            "id": "rad-4",
+            "name": "Gmail Search",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2,
+            "position": [
+                750,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "return {\n  summary: \"Resumen del turno de radiología generado exitosamente.\",\n  calendarEvents: $node[\"Google Calendar Search\"].json,\n  urgentEmails: $node[\"Gmail Search\"].json\n};"
+            },
+            "id": "rad-5",
+            "name": "Format Output",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Google Gemini Chat Model": {
+            "ai_language_model": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_language_model",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Window Buffer Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "MCP Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Format Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Calendar Search": {
+            "main": [
+                [
+                    {
+                        "node": "Format Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gmail Search": {
+            "main": [
+                [
+                    {
+                        "node": "Format Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {},
+    "tags": [
+        {
+            "name": "mcp"
+        }
+    ],
+    "meta": {
+        "templateCredentialApiKeys": {
+            "googleCalendarOAuth2Api": "REEMPLAZAR_CON_ID_CALENDAR",
+            "gmailOAuth2Api": "REEMPLAZAR_CON_ID_GMAIL",
+            "googleCloudGeminiChatApi": "REEMPLAZAR_CON_ID_GEMINI"
+        }
+    }
+}

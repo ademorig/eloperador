@@ -1,0 +1,11 @@
+# Core dependencies for n8n MCP client
+mcp>=1.26.0
+httpx>=0.28.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# Additional dependencies
+httpx-sse>=0.4.0
+pydantic-settings>=2.0.0
+fastapi>=0.100.0
+uvicorn>=0.23.0

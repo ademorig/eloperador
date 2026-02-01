@@ -1,0 +1,112 @@
+{
+    "name": "El Operador - Telegram Integration",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "operador/telegram/callback",
+                "options": {}
+            },
+            "id": "telegram-webhook",
+            "name": "Telegram Callback",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                0,
+                0
+            ],
+            "webhookId": "operador-telegram-callback"
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:3847/api/telegram/callback",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "callback_data",
+                            "value": "={{ $json.body.callback_query.data }}"
+                        },
+                        {
+                            "name": "chat_id",
+                            "value": "={{ $json.body.callback_query.message.chat.id }}"
+                        },
+                        {
+                            "name": "message_id",
+                            "value": "={{ $json.body.callback_query.message.message_id }}"
+                        },
+                        {
+                            "name": "propuesta",
+                            "value": "={{ $json.body.callback_query.message.text }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "notify-dashboard",
+            "name": "Notify Dashboard",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                220,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $node[\"Telegram Callback\"].json.body.callback_query.message.chat.id }}",
+                "text": "={{ $node[\"Notify Dashboard\"].json.confirmation_text }}",
+                "replyToMessageId": "={{ $node[\"Telegram Callback\"].json.body.callback_query.message.message_id }}",
+                "additionalFields": {
+                    "parse_mode": "Markdown"
+                }
+            },
+            "id": "telegram-reply",
+            "name": "Telegram Confirmed",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.1,
+            "position": [
+                440,
+                0
+            ],
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+                    "name": "Telegram Bot"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Telegram Callback": {
+            "main": [
+                [
+                    {
+                        "node": "Notify Dashboard",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Notify Dashboard": {
+            "main": [
+                [
+                    {
+                        "node": "Telegram Confirmed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": {
+        "instanceId": "local"
+    }
+}

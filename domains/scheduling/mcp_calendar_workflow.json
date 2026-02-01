@@ -1,0 +1,220 @@
+{
+    "name": "MCP_CheckAndScheduleEvent",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "mcp-calendar",
+                "options": {}
+            },
+            "id": "76973028-1",
+            "name": "MCP Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "mensaje_texto",
+                            "value": "={{ $json.body.input.mensaje_texto }}"
+                        },
+                        {
+                            "name": "usuario",
+                            "value": "={{ $json.body.input.usuario }}"
+                        },
+                        {
+                            "name": "calendario_id",
+                            "value": "={{ $json.body.input.calendario_id }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "76973028-2",
+            "name": "Parse Input",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 2,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "event",
+                "operation": "list",
+                "calendar": "={{ $node[\"Parse Input\"].json.calendario_id }}",
+                "filters": {
+                    "timeMin": "={{ $node[\"Parse Input\"].json.fecha_inicio || $now.minus({ hours: 1 }).toISO() }}",
+                    "timeMax": "={{ $node[\"Parse Input\"].json.fecha_fin || $now.plus({ hours: 1 }).toISO() }}"
+                }
+            },
+            "id": "76973028-3",
+            "name": "Check Availability",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "YOUR_GCAL_CREDENTIAL_ID",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{ $json.length }}",
+                            "operation": "equal",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "id": "76973028-4",
+            "name": "Decision Node",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "event",
+                "operation": "create",
+                "calendar": "={{ $node[\"Parse Input\"].json.calendario_id }}",
+                "start": "={{ $node[\"Parse Input\"].json.fecha_inicio }}",
+                "end": "={{ $node[\"Parse Input\"].json.fecha_fin }}",
+                "additionalFields": {
+                    "summary": "={{ $node[\"Parse Input\"].json.mensaje_texto }}"
+                }
+            },
+            "id": "76973028-5",
+            "name": "Create Event",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                200
+            ],
+            "credentials": {
+                "googleCalendarOAuth2Api": {
+                    "id": "YOUR_GCAL_CREDENTIAL_ID",
+                    "name": "Google Calendar account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "return {\n  status: \"success\",\n  evento_id: $node[\"Create Event\"].json.id,\n  mensaje_resumen: `Evento '${$node[\"Parse Input\"].json.mensaje_texto}' programado exitosamente. Sin conflictos detectados.`\n};"
+            },
+            "id": "76973028-6",
+            "name": "Return MCP Output",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "return {\n  status: \"error\",\n  mensaje_resumen: \"Hay un conflicto en el calendario para esa fecha y hora.\"\n};"
+            },
+            "id": "76973028-7",
+            "name": "Return Conflict Error",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "MCP Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Input",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Input": {
+            "main": [
+                [
+                    {
+                        "node": "Check Availability",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Availability": {
+            "main": [
+                [
+                    {
+                        "node": "Decision Node",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Decision Node": {
+            "main": [
+                [
+                    {
+                        "node": "Create Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Return Conflict Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Event": {
+            "main": [
+                [
+                    {
+                        "node": "Return MCP Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {},
+    "versionId": "dbe2d46e-1d5b-4d4b-9e3-71d47eafb810",
+    "id": "mcp-calendar-example",
+    "meta": {
+        "templateCredentialApiKeys": {
+            "googleCalendarOAuth2Api": "YOUR_GCAL_CREDENTIAL_ID"
+        }
+    }
+}
