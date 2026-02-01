@@ -1,0 +1,124 @@
+{
+  "name": "Exceptional Telegram Admission",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "prompt": "Extrae los siguientes campos en formato JSON de este mensaje médico de Telegram: patient_name, age (numero), sex (M/F), study_type, region, physician. Mensaje: {{ $json.message.text }}",
+        "jsonOutput": true
+      },
+      "name": "AI Parsing (Extraction)",
+      "type": "n8n-nodes-base.openAi",
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.patient_name }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.study_type }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validator",
+      "type": "n8n-nodes-base.if",
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "command": "python scripts/exceptional_admission_api.py",
+        "args": "={\"telegram_user_id\": \"{{ $node[\"Telegram Trigger\"].json.message.from.id }}\", \"raw_message\": \"{{ $node[\"Telegram Trigger\"].json.message.text }}\", \"extracted_fields\": {{ $json }}}"
+      },
+      "name": "Orchestrator Call",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Telegram Trigger\"].json.message.chat.id }}",
+        "text": "✅ *Admisión Exitosa*\nPaciente ID: {{ $json.patient_id }}\nEstudio ID: {{ $json.study_id }}\n{{ $json.message }}\n\nSistema listo para informar."
+      },
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Telegram Trigger\"].json.message.chat.id }}",
+        "text": "❌ *Faltan Datos Críticos*\nPor favor, indique el Nombre del Paciente y el Tipo de Estudio solicitado."
+      },
+      "name": "Ask for Clarification",
+      "type": "n8n-nodes-base.telegram",
+      "position": [700, 400]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Parsing (Extraction)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Parsing (Extraction)": {
+      "main": [
+        [
+          {
+            "node": "Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validator": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask for Clarification",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Orchestrator Call": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

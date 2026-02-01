@@ -1,14 +1,17 @@
 import os
+import sys
 import asyncio
 import httpx
 import json
-from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
 
-# Load credentials
+# Load credentials and setup path
 BASE_DIR = Path(__file__).parent
 ROOT_DIR = BASE_DIR.parent.parent
+sys.path.append(str(ROOT_DIR))
+
+from dotenv import load_dotenv
 load_dotenv(ROOT_DIR / ".env")
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -102,7 +105,46 @@ async def bot_listener():
                         elif text == "/status":
                             await send_text_message(chat_id, "◉ *Estado del Sistema*\n\n✅ Conectado a Telegram\n✅ Listener Activo\n📡 Observando: Gmail & Calendarios\n🏥 Dominio Radiología: Protegido")
                         else:
-                            await send_text_message(chat_id, "Recibido. He registrado tu mensaje, pero mi lógica de comandos es limitada por ahora. ¿En qué puedo ayudarte con los flujos de trabajo?")
+                            # Medical intent detection (exceptional admission)
+                            medical_keywords = ["agendar", "paciente", "estudio", "turno", "medico", "dr.", "dra."]
+                            is_medical = any(kw in text for kw in medical_keywords)
+                            
+                            if is_medical:
+                                await send_text_message(chat_id, "🔍 *Detectado intento de admisión.* Procesando datos...")
+                                # Call n8n or orchestrator directly? Orchestrator is faster for this context.
+                                try:
+                                    from scripts.exceptional_admission_api import ExceptionalAdmissionOrchestrator
+                                    orch = ExceptionalAdmissionOrchestrator()
+                                    
+                                    # We need a basic extraction here if not using n8n node
+                                    # For now, let's assume we want to trigger the n8n workflow or use the orchestrator
+                                    # Given the user's workflow exists, we'll simulate the AI extraction or call n8n
+                                    # But since we are in the script, let's call the orchestrator with raw message
+                                    # and use a simple local extraction or just pass it as fields if n8n not available
+                                    
+                                    # For a better experience, we should ideally call the n8n webhook if available, 
+                                    # but the orchestration script is designed for this.
+                                    
+                                    # Mocking the extraction for the orchestrator (ideally this should call an LLM)
+                                    # But for now, let's signal that we are handing it off.
+                                    result = orch.process_admission({
+                                        "telegram_user_id": str(chat_id),
+                                        "raw_message": msg["text"],
+                                        "extracted_fields": {
+                                            "patient_name": msg["text"].split(",")[0].replace("Agendar paciente ", "").strip(),
+                                            "study_type": "Pendiente de clasificar", # Placeholder
+                                        }
+                                    })
+                                    
+                                    if result["status"] == "success":
+                                        await send_text_message(chat_id, f"✅ *Admisión Exitosa*\nPaciente ID: {result['patient_id']}\nEstudio ID: {result['study_id']}\n\nLos datos han sido registrados. Puede verlos en el panel web.")
+                                    else:
+                                        await send_text_message(chat_id, f"❌ *Error en admisión:* {result.get('message')}")
+                                        
+                                except Exception as e:
+                                    await send_text_message(chat_id, f"⚠️ Error procesando admisión: {str(e)}")
+                            else:
+                                await send_text_message(chat_id, "Recibido. He registrado tu mensaje, pero mi lógica de comandos es limitada por ahora. ¿En qué puedo ayudarte con los flujos de trabajo?")
                             
             except Exception as e:
                 print(f"Error in listener: {e}")

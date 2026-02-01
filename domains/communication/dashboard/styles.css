@@ -6,29 +6,71 @@
     --bg-secondary: #0f172a;
     --bg-card: #111827;
     --bg-hover: #1e293b;
-    
+
     --border-subtle: #1e293b;
     --border-active: #334155;
-    
+
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     --text-dim: #475569;
-    
+
     --accent-blue: #3b82f6;
     --accent-purple: #8b5cf6;
     --accent-green: #22c55e;
     --accent-amber: #f59e0b;
     --accent-red: #ef4444;
-    
+
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    
+
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
-    
+
     --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
     --shadow-glow: 0 0 16px rgba(59, 130, 246, 0.3);
+
+    --overlay-bg: rgba(7, 10, 21, 0.85);
+}
+
+.btn-primary {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 * {
@@ -122,8 +164,15 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 /* Tags */
@@ -285,6 +334,66 @@ body {
     color: var(--accent-amber);
 }
 
+/* Interactive Observation Styles */
+.observation-item.pending {
+    border-left: 3px solid var(--accent-amber);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.observation-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.btn-action {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.btn-action.approve {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--accent-green);
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.btn-action.approve:hover {
+    background: var(--accent-green);
+    color: white;
+}
+
+.btn-action.reject {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--accent-red);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.btn-action.reject:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
+.btn-action.defer {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-amber);
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.btn-action.defer:hover {
+    background: var(--accent-amber);
+    color: white;
+}
+
 /* Run Item */
 .run-item {
     display: flex;
@@ -302,9 +411,17 @@ body {
     border-radius: 50%;
 }
 
-.run-status.completed { background: var(--accent-green); }
-.run-status.pending { background: var(--accent-amber); }
-.run-status.failed { background: var(--accent-red); }
+.run-status.completed {
+    background: var(--accent-green);
+}
+
+.run-status.pending {
+    background: var(--accent-amber);
+}
+
+.run-status.failed {
+    background: var(--accent-red);
+}
 
 .run-info {
     flex: 1;
@@ -404,6 +521,124 @@ body {
     flex-wrap: wrap;
 }
 
+/* Modal & Forms */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--overlay-bg);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-active);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 500px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 18px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.btn-close:hover {
+    color: var(--text-primary);
+}
+
+.form {
+    padding: 24px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-group label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.form-group input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.form-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+
 .footer-hint {
     display: flex;
     gap: 12px;
@@ -450,11 +685,11 @@ body {
     .content-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .memory-stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }

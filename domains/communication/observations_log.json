@@ -1,0 +1,10 @@
+{
+  "observations": [
+    {
+      "id": "test-obs-123",
+      "contexto": "Test Connection",
+      "propuesta": "Should we automate this test?",
+      "timestamp": "2026-02-01T01:22:09.747837"
+    }
+  ]
+}

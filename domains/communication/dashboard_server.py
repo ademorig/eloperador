@@ -18,23 +18,50 @@ import uvicorn
 
 from dotenv import load_dotenv
 
-# Paths
+import sys
+from pathlib import Path
 BASE_DIR = Path(__file__).parent
 ROOT_DIR = BASE_DIR.parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
+sys.path.append(str(ROOT_DIR / "core" / "memory"))
+import memory_manager
+
 DECISION_LOG = ROOT_DIR / "core" / "memory" / "decision_log.json"
-DASHBOARD_DIR = BASE_DIR / "dashboard"
+DASHBOARD_DIR = ROOT_DIR / "domains" / "dashboard" # Using the professional UI
+
+# Clinical imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from domains.patients.controllers.patient_controller import PatientController
+from domains.studies.controllers.study_controller import StudyController
+from domains.patient_reports.controllers.report_controller import ReportController
+from core.memory.store_manager import DomainStore
+from pydantic import BaseModel
+
+# Controllers
+patient_ctrl = PatientController()
+study_ctrl = StudyController()
+report_ctrl = ReportController()
+
+REPORTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'outputs', 'reports'))
+os.makedirs(REPORTS_DIR, exist_ok=True)
 
 # Config env
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", 3847))
 
 app = FastAPI(
-    title="El Operador - Dashboard API",
-    description="Read-only dashboard for the persistent agent",
-    version="0.3"
+    title="El Operador - Unified Dashboard",
+    description="Unified clinical and agent dashboard",
+    version="0.5"
 )
+
+app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
+
+class ReportDraft(BaseModel):
+    study_id: str
+    results_summary: str
+    physician: str
 
 # CORS for local development
 app.add_middleware(
@@ -48,18 +75,7 @@ app.add_middleware(
 LAST_HEARTBEAT = datetime.now()
 
 
-def load_memory() -> dict:
-    """Load decision log from disk."""
-    if DECISION_LOG.exists():
-        with open(DECISION_LOG, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {
-        "version": "1.0",
-        "agent": "El Operador",
-        "decisions": [],
-        "learned_patterns": {},
-        "statistics": {"total_proposals": 0, "accepted": 0, "rejected": 0, "deferred": 0, "modified": 0}
-    }
+# Removed load_memory in favor of memory_manager direct calls
 
 
 OBSERVATIONS_LOG = BASE_DIR / "observations_log.json"
@@ -95,7 +111,7 @@ async def post_observation(observation: dict):
 async def get_status():
     """Get agent status and heartbeat."""
     global LAST_HEARTBEAT
-    memory = load_json(DECISION_LOG, {"statistics": {"total_proposals": 0}})
+    stats = memory_manager.get_statistics()
     obs_log = load_json(OBSERVATIONS_LOG, {"observations": []})
     
     return {
@@ -105,7 +121,7 @@ async def get_status():
         "mode": "Silent Observer",
         "last_heartbeat": LAST_HEARTBEAT.isoformat(),
         "uptime_seconds": (datetime.now() - LAST_HEARTBEAT).total_seconds(),
-        "total_decisions": memory["statistics"]["total_proposals"],
+        "total_decisions": stats["total_proposals"],
         "total_observations": len(obs_log["observations"])
     }
 
@@ -113,17 +129,17 @@ async def get_status():
 async def get_observations():
     """Get recent observations/proposals."""
     obs_log = load_json(OBSERVATIONS_LOG, {"observations": []})
-    decisions = load_json(DECISION_LOG, {"decisions": []}).get("decisions", [])
+    decisions = memory_manager.get_decisions(limit=10)
     
     # Combinar observaciones frescas con decisiones pasadas
-    recent = obs_log["observations"] + decisions[-10:]
+    recent = obs_log["observations"] + decisions
     
     return {
         "count": len(obs_log["observations"]),
-        "recent": list(reversed(recent))[:20],
+        "recent": sorted(recent, key=lambda x: x.get('timestamp', ''), reverse=True)[:20],
         "summary": {
             "today": len(obs_log["observations"]),
-            "accumulated": len(decisions)
+            "accumulated": memory_manager.get_statistics()["total_proposals"]
         }
     }
 
@@ -132,23 +148,24 @@ async def get_observations():
 async def get_runs():
     """Get flow execution history (simulated for now, will integrate with n8n)."""
     # TODO: Integrate with n8n API to get actual workflow runs
-    memory = load_memory()
+    stats = memory_manager.get_statistics()
+    decisions = memory_manager.get_decisions(limit=10)
     
     return {
-        "total_runs": memory["statistics"]["total_proposals"],
-        "successful": memory["statistics"]["accepted"],
+        "total_runs": stats["total_proposals"],
+        "successful": stats["accepted"],
         "failed": 0,
-        "pending": memory["statistics"]["deferred"],
-        "last_run": memory["decisions"][-1]["timestamp"] if memory["decisions"] else None,
+        "pending": stats["deferred"],
+        "last_run": decisions[0]["timestamp"] if decisions else None,
         "history": [
             {
-                "id": i,
+                "id": d.get("id"),
                 "timestamp": d.get("timestamp"),
                 "type": "observation",
-                "status": "completed" if d.get("decision_usuario") in ["sí", "no"] else "pending",
-                "context": d.get("contexto", "")[:50]
+                "status": "completed" if d.get("decision") in ["sí", "no"] else "pending",
+                "context": d.get("context", "")[:50]
             }
-            for i, d in enumerate(reversed(memory.get("decisions", [])[-10:]))
+            for d in decisions
         ]
     }
 
@@ -156,20 +173,47 @@ async def get_runs():
 @app.get("/api/memory")
 async def get_memory():
     """Get accumulated memory and learned patterns."""
-    memory = load_memory()
+    stats = memory_manager.get_statistics()
+    patterns = memory_manager.get_learned_patterns()
+    decisions = memory_manager.get_decisions(limit=1)
     
     return {
-        "version": memory.get("version", "1.0"),
-        "created": memory.get("created"),
-        "statistics": memory.get("statistics", {}),
-        "learned_patterns": memory.get("learned_patterns", {}),
-        "total_entries": len(memory.get("decisions", [])),
+        "version": "2.0",
+        "statistics": stats,
+        "learned_patterns": patterns,
+        "total_entries": stats["total_proposals"],
         "acceptance_rate": (
-            round(memory["statistics"]["accepted"] / memory["statistics"]["total_proposals"] * 100, 1)
-            if memory["statistics"]["total_proposals"] > 0 else 0
+            round(stats["accepted"] / stats["total_proposals"] * 100, 1)
+            if stats["total_proposals"] > 0 else 0
         )
     }
 
+
+@app.post("/api/observations/decide")
+async def decide_observation(data: dict):
+    """
+    Endpoint para tomar decisiones desde el Dashboard.
+    """
+    obs_id = data.get("id")
+    action = data.get("action") # sí, no, después
+    proposal = data.get("proposal", "Acción vía Dashboard")
+    
+    # Registrar en memoria SQLite
+    result = memory_manager.record_decision(
+        contexto=f"Dashboard Decisión {obs_id}",
+        propuesta=proposal,
+        decision=action,
+        razon_inferida="Decisión manual desde Dashboard"
+    )
+    
+    # Eliminar de observaciones pendientes si aplica
+    logs = load_json(OBSERVATIONS_LOG, {"observations": []})
+    logs["observations"] = [o for o in logs["observations"] if o.get("id") != obs_id]
+    
+    with open(OBSERVATIONS_LOG, "w", encoding="utf-8") as f:
+        json.dump(logs, f, indent=2, ensure_ascii=False)
+        
+    return {"status": "recorded", "decision": action, "id": result["id"]}
 
 @app.post("/api/telegram/callback")
 async def telegram_callback(data: dict):
@@ -185,36 +229,18 @@ async def telegram_callback(data: dict):
         return {"status": "ignored"}
     
     parts = callback_data.split("_")
-    action = parts[1] # prep, ignore, later
+    action = parts[1] # prep (sí), ignore (no), later (después)
     obs_id = parts[2]
     
     # Mapear accion a decision y mensaje de consecuencia
-    messages = {
-        "prep": {
-            "decision": "sí",
-            "text": "Decisión registrada: Preparar automatización.",
-            "consequence": "Se generará un flujo de borrador basado en este patrón para tu revisión."
-        },
-        "ignore": {
-            "decision": "no",
-            "text": "Decisión registrada: Ignorar por ahora.",
-            "consequence": "Este patrón se seguirá observando en silencio sin nuevas notificaciones."
-        },
-        "later": {
-            "decision": "después",
-            "text": "Decisión registrada: Decidir luego.",
-            "consequence": "Este aviso se ha guardado en memoria para revisión futura. El ciclo actual finaliza."
-        }
-    }
+    mapping = {
+        "prep": {"decision": "sí", "text": "Preparar automatización"},
+        "ignore": {"decision": "no", "text": "Ignorar"},
+        "later": {"decision": "después", "text": "Decidir luego"}
+    }.get(action, {"decision": "después", "text": "Decidir luego"})
     
-    mapping = messages.get(action, messages["later"])
-    
-    # Registrar en memoria
-    # Usamos import dinámico para evitar problemas de circularidad o paths en desarrollo
-    import sys
-    sys.path.append(str(ROOT_DIR / "core" / "memory"))
-    from memory_manager import record_decision
-    record_decision(
+    # Registrar en memoria SQLite
+    memory_manager.record_decision(
         contexto=f"Telegram Alert {obs_id}",
         propuesta=data.get("propuesta", "Acción vía Telegram"),
         decision=mapping["decision"],
@@ -224,9 +250,63 @@ async def telegram_callback(data: dict):
     return {
         "status": "recorded",
         "action": action,
-        "confirmation_text": f"*{mapping['text']}*\n_{mapping['consequence']}_"
+        "confirmation_text": f"*Decisión registrada: {mapping['text']}*"
     }
 
+# --- Clinical Endpoints ---
+
+@app.get("/api/data")
+async def get_all_data():
+    patients = DomainStore("patients.json").get_all()
+    studies = DomainStore("studies.json").get_all()
+    reports = DomainStore("reports.json").get_all()
+    
+    return {
+        "patients": list(patients.values()),
+        "studies": list(studies.values()),
+        "reports": list(reports.values())
+    }
+
+@app.post("/api/reports")
+async def create_report(draft: ReportDraft):
+    result = report_ctrl.process_report(
+        study_id=draft.study_id,
+        results_summary=draft.results_summary,
+        physician=draft.physician
+    )
+    if result["status"] == "success":
+        return result
+    else:
+        raise HTTPException(status_code=400, detail=result["message"])
+
+
+from scripts.exceptional_admission_api import ExceptionalAdmissionOrchestrator
+
+@app.post("/api/admission")
+async def dashboard_admission(data: dict):
+    """
+    Endpoint para registrar un nuevo estudio desde el Dashboard.
+    """
+    orchestrator = ExceptionalAdmissionOrchestrator()
+    
+    # Formatear datos para el orquestador similar a n8n
+    admission_data = {
+        "telegram_user_id": "DASHBOARD",
+        "raw_message": f"Admisión manual Dashboard: {data.get('patient_name')}",
+        "extracted_fields": {
+            "patient_name": data.get("patient_name"),
+            "study_type": data.get("study_type"),
+            "physician": data.get("physician"),
+            "region": data.get("region", "")
+        }
+    }
+    
+    result = orchestrator.process_admission(admission_data)
+    
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+        
+    return result
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
@@ -255,4 +335,4 @@ if __name__ == "__main__":
     print("[*] El Operador - Dashboard Server")
     print(f"    http://{DASHBOARD_HOST}:{DASHBOARD_PORT}")
     print("    Endpoints: /api/status, /api/observations, /api/runs, /api/memory")
-    uvicorn.run(app, host=DASHBOARD_HOST, port=DASHBOARD_PORT)
+    uvicorn.run(app, host=DASHBOARD_HOST, port=DASHBOARD_PORT, reload=True)

@@ -29,3 +29,8 @@ Thumbs.db
 
 # Exclusions
 rishep
+core/memory/*.db
+core/memory/*.json
+outputs/
+*.log
+.agent/

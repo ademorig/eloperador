@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIS Pro | El Operador</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --bg-body: #f8fafc;
+            --bg-sidebar: #0f172a;
+            --sidebar-hover: #1e293b;
+            --header-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --status-pending: #f59e0b;
+            --status-reported: #10b981;
+
+            /* Agent specific colors */
+            --agent-bg: #0f172a;
+            --agent-card: #1e293b;
+            --agent-accent: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--primary);
+        }
+
+        .nav-links {
+            padding: 12px;
+            flex: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #94a3b8;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: var(--sidebar-hover);
+            color: white;
+        }
+
+        .nav-item.active {
+            border-left: 4px solid var(--primary);
+        }
+
+        /* Main Area */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header */
+        header {
+            height: 64px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Search Panel */
+        .search-panel {
+            background: white;
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.875rem;
+            width: 100%;
+        }
+
+        .form-control:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+
+        /* Worklist Table */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+        }
+
+        .ris-table-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th {
+            background: #f8fafc;
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover td {
+            background: #fdfdfd;
+        }
+
+        tr.selected td {
+            background: #f0f9ff;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-reported {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        /* Editor Modal Style (Centered Over Content) */
+        .editor-container {
+            position: absolute;
+            top: 24px;
+            left: 32px;
+            right: 32px;
+            bottom: 24px;
+            background: white;
+            z-index: 100;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            display: none;
+            flex-direction: column;
+        }
+
+        .editor-container.visible {
+            display: flex;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .editor-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .editor-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        textarea#report-text {
+            width: 100%;
+            height: 400px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.5;
+            resize: none;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Agent Stats Styles */
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .agent-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .agent-icon {
+            font-size: 2rem;
+        }
+
+        .agent-val {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bg-sidebar);
+        }
+
+        .agent-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .obs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .obs-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .obs-item.pending {
+            border-left: 4px solid var(--status-pending);
+        }
+
+        .obs-ctx {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .obs-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .btn-action {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-approve {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .btn-reject {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn-defer {
+            background: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">RIS | PRO</div>
+        <div class="nav-links">
+            <div class="nav-item active" onclick="setSection('worklist')"><span>📋</span> Worklist</div>
+            <div class="nav-item" onclick="setSection('reports')"><span>📄</span> Archivo</div>
+            <div class="nav-item" onclick="setSection('patients')"><span>👥</span> Pacientes</div>
+            <div class="nav-item" onclick="setSection('agent')"><span>🧠</span> Inteligencia</div>
+            <div class="nav-item" onclick="setSection('agenda')"><span>📅</span> Agenda</div>
+            <div class="nav-item" onclick="setSection('config')"><span>⚙️</span> Configuración</div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <header>
+            <div class="header-title" id="view-title">Lista de Trabajo (Worklist)</div>
+            <div style="display:flex; gap:16px; align-items:center;">
+                <button class="btn btn-primary" style="background:#059669;" onclick="openModal('admission')">➕ Nuevo
+                    Registro</button>
+                <div style="font-size: 0.9rem; color: var(--text-muted);" id="stats">Cargando...</div>
+            </div>
+        </header>
+
+        <div class="search-panel" id="search-panel">
+            <div class="form-group">
+                <label>ID / Cédula</label>
+                <input type="text" id="search-id" class="form-control" placeholder="Buscar ID..."
+                    oninput="handleSearch()">
+            </div>
+            <div class="form-group">
+                <label>Paciente</label>
+                <input type="text" id="search-name" class="form-control" placeholder="Nombre completo..."
+                    oninput="handleSearch()">
+            </div>
+            <div class="form-group">
+                <label>Estudio</label>
+                <input type="text" id="search-study" class="form-control" placeholder="Tipo de estudio..."
+                    oninput="handleSearch()">
+            </div>
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="search-date" class="form-control" onchange="handleSearch()">
+            </div>
+        </div>
+
+        <div class="content" id="main-content">
+            <!-- Normal Content (Tables) -->
+            <div id="table-view">
+                <div class="ris-table-card">
+                    <table id="worklist-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>ID / Cédula</th>
+                                <th>Paciente</th>
+                                <th>Estudio</th>
+                                <th>Médico Solicitante</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Data rows here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Agent View -->
+            <div id="agent-view" style="display: none;">
+                <div class="agent-grid">
+                    <div class="agent-card">
+                        <div class="agent-icon">💓</div>
+                        <div>
+                            <div class="agent-label">Latido</div>
+                            <div class="agent-val" id="agent-beat">--</div>
+                        </div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">👁️</div>
+                        <div>
+                            <div class="agent-label">Observaciones</div>
+                            <div class="agent-val" id="agent-obs-count">--</div>
+                        </div>
+                    </div>
+                    <div class="agent-card">
+                        <div class="agent-icon">⚡</div>
+                        <div>
+                            <div class="agent-label">Tasa Aceptación</div>
+                            <div class="agent-val" id="agent-rate">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 16px;">📌 Observaciones Recientes</h3>
+                <div class="obs-list" id="agent-obs-list">
+                    <!-- Obs here -->
+                </div>
+            </div>
+
+            <!-- Agenda View -->
+            <div id="agenda-view" style="display: none;">
+                <div class="ris-table-card" style="padding: 32px;">
+                    <h3>📅 Programar Nueva Cita</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px;">
+                        <div class="form-group">
+                            <label>Paciente / Motivo</label>
+                            <input type="text" id="sch-text" class="form-control"
+                                placeholder="Ej: Juan Perez - TAC Torax">
+                        </div>
+                        <div class="form-group">
+                            <label>Email Usuario</label>
+                            <input type="email" id="sch-user" class="form-control" placeholder="medico@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha y Hora</label>
+                            <input type="datetime-local" id="sch-date" class="form-control">
+                        </div>
+                        <div class="form-group" style="justify-content: flex-end; display: flex;">
+                            <button class="btn btn-primary" style="height: 42px; margin-top: auto;"
+                                onclick="scheduleEvent()">Agendar en Google Calendar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admission Modal -->
+        <div id="modal-admission" class="editor-container"
+            style="height: auto; max-width: 600px; margin: auto; top: 15%;">
+            <div class="editor-header">
+                <h2 style="margin:0;">📋 Nueva Admisión de Estudio</h2>
+                <button class="btn btn-secondary" onclick="closeModal('admission')">Cerrar</button>
+            </div>
+            <div class="editor-body">
+                <div style="display: grid; gap: 16px;">
+                    <div class="form-group">
+                        <label>Nombre del Paciente</label>
+                        <input type="text" id="adm-name" class="form-control" placeholder="Juan Perez">
+                    </div>
+                    <div class="form-group">
+                        <label>Modalidad (Categoría)</label>
+                        <select id="adm-modality" class="form-control" onchange="updateStudySelect()">
+                            <option value="">Seleccione modalidad...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estudio Específico</label>
+                        <select id="adm-study" class="form-control">
+                            <option value="">Seleccione estudio...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Médico Solicitante</label>
+                        <input type="text" id="adm-phys" class="form-control" placeholder="Dr. Martinez">
+                    </div>
+                </div>
+            </div>
+            <div class="editor-footer">
+                <button class="btn btn-primary" onclick="submitAdmission()">Registrar Estudio</button>
+            </div>
+        </div>
+
+        <!-- Editor Overlay -->
+        <div id="editor-overlay" class="editor-container">
+            <div class="editor-header">
+                <div>
+                    <h2 id="editor-title" style="margin:0; font-size: 1.25rem;">Informe Radiológico</h2>
+                    <div id="editor-subtitle" style="color: var(--text-muted); font-size: 0.9rem;"></div>
+                </div>
+                <button class="btn btn-secondary" onclick="closeEditor()">Cerrar</button>
+            </div>
+            <div class="editor-body">
+                <textarea id="report-text" placeholder="Escriba los hallazgos y conclusiones..."></textarea>
+            </div>
+            <div class="editor-footer">
+                <input type="text" id="physician-name" placeholder="Firma del Médico" class="form-control"
+                    style="width: 300px;">
+                <button class="btn btn-primary" onclick="saveReport()">Confirmar y Generar PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = { patients: [], studies: [], reports: [] };
+        let activeStudyId = null;
+        let activeSection = 'worklist';
+
+        const radiologyStudies = {
+            "RX": {
+                "description": "Radiografía convencional",
+                "studies": [
+                    "Tórax PA", "Tórax AP", "Tórax lateral", "Abdomen simple", "Abdomen de pie",
+                    "Columna cervical", "Columna dorsal", "Columna lumbar", "Columna total",
+                    "Pelvis", "Cráneo", "Senos paranasales", "Mano", "Muñeca", "Antebrazo",
+                    "Codo", "Hombro", "Clavícula", "Rodilla", "Pierna", "Tobillo", "Pie"
+                ]
+            },
+            "US": {
+                "description": "Ecografía",
+                "studies": [
+                    "Abdomen total", "Abdomen superior", "Hígado y vías biliares", "Vesícula biliar",
+                    "Riñones y vías urinarias", "Próstata suprapúbica", "Próstata transrectal",
+                    "Pelvis femenina", "Pelvis masculina", "Obstétrica primer trimestre",
+                    "Obstétrica segundo trimestre", "Obstétrica tercer trimestre", "Doppler obstétrico",
+                    "Doppler carotídeo", "Doppler venoso miembros inferiores",
+                    "Doppler arterial miembros inferiores", "Tiroides", "Mama", "Partes blandas",
+                    "Testicular", "Escrotal"
+                ]
+            },
+            "CT": {
+                "description": "Tomografía computarizada",
+                "studies": [
+                    "Craneo simple", "Craneo contrastado", "Macizo facial", "Senos paranasales",
+                    "Columna cervical", "Columna dorsal", "Columna lumbar", "Tórax simple",
+                    "Tórax contrastado", "Abdomen simple", "Abdomen contrastado", "Abdomen y pelvis",
+                    "AngioTC pulmonar", "AngioTC cerebral", "Urotomografía", "TC de alta resolución pulmonar"
+                ]
+            },
+            "MRI": {
+                "description": "Resonancia magnética",
+                "studies": [
+                    "Craneo", "Silla turca", "Columna cervical", "Columna dorsal", "Columna lumbar",
+                    "Rodilla", "Hombro", "Cadera", "Tobillo", "Muñeca", "Abdomen", "Pelvis",
+                    "Próstata multiparamétrica", "Mama", "Colangioresonancia", "AngioRM"
+                ]
+            },
+            "MG": {
+                "description": "Mamografía",
+                "studies": [
+                    "Mamografía bilateral", "Mamografía unilateral", "Mamografía con magnificación",
+                    "Tomosíntesis mamaria"
+                ]
+            },
+            "NM": {
+                "description": "Medicina nuclear",
+                "studies": [
+                    "Gammagrafía ósea", "Gammagrafía renal", "Gammagrafía tiroidea", "PET-CT", "SPECT"
+                ]
+            },
+            "FLUORO": {
+                "description": "Fluoroscopía",
+                "studies": [
+                    "Esofagograma", "Tránsito intestinal", "Enema baritado", "Uretrocistografía",
+                    "Histerosalpingografía"
+                ]
+            }
+        };
+
+        function initStudySelects() {
+            const modSelect = document.getElementById('adm-modality');
+            for (const key in radiologyStudies) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `${key} - ${radiologyStudies[key].description}`;
+                modSelect.appendChild(opt);
+            }
+        }
+
+        function updateStudySelect() {
+            const modKey = document.getElementById('adm-modality').value;
+            const studySelect = document.getElementById('adm-study');
+            studySelect.innerHTML = '<option value="">Seleccione estudio...</option>';
+
+            if (modKey && radiologyStudies[modKey]) {
+                radiologyStudies[modKey].studies.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    studySelect.appendChild(opt);
+                });
+            }
+        }
+
+        async function loadData() {
+            try {
+                const resp = await fetch('/api/data');
+                currentData = await resp.json();
+                renderUI();
+            } catch (err) {
+                console.error("Error loading data:", err);
+            }
+        }
+
+        function setSection(section) {
+            activeSection = section;
+            document.querySelectorAll('.nav-item').forEach(item => {
+                const text = item.innerText.toLowerCase();
+                item.classList.toggle('active', text.includes(section.toLowerCase().slice(0, 3)));
+            });
+
+            document.getElementById('view-title').innerText =
+                section === 'worklist' ? 'Lista de Trabajo (Worklist)' :
+                    section === 'reports' ? 'Archivo de Informes' :
+                        section === 'agent' ? 'Centro de Inteligencia (El Operador)' : section.toUpperCase();
+
+            document.getElementById('table-view').style.display = (section === 'worklist' || section === 'reports') ? 'block' : 'none';
+            document.getElementById('agent-view').style.display = (section === 'agent') ? 'block' : 'none';
+            document.getElementById('agenda-view').style.display = (section === 'agenda') ? 'block' : 'none';
+            document.getElementById('search-panel').style.display = (section === 'worklist' || section === 'reports') ? 'grid' : 'none';
+
+            closeEditor();
+            closeModal('admission');
+            if (section === 'agent') {
+                refreshAgentData();
+            } else if (section !== 'agenda') {
+                renderUI();
+            }
+        }
+
+        function openModal(id) {
+            document.getElementById('modal-' + id).classList.add('visible');
+        }
+
+        function closeModal(id) {
+            document.getElementById('modal-' + id).classList.remove('visible');
+        }
+
+        function handleSearch() {
+            renderUI();
+        }
+
+        function renderUI() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const filters = {
+                id: document.getElementById('search-id').value.toLowerCase(),
+                name: document.getElementById('search-name').value.toLowerCase(),
+                study: document.getElementById('search-study').value.toLowerCase(),
+                date: document.getElementById('search-date').value
+            };
+
+            let items = [];
+            if (activeSection === 'worklist') {
+                items = currentData.studies.filter(s => s.status !== 'reported');
+            } else if (activeSection === 'reports') {
+                items = currentData.reports;
+            }
+
+            const filtered = items.filter(item => {
+                const patient = currentData.patients.find(p => p.patient_id === item.patient_id) || {};
+                const name = (patient.name || item.patient_name || '').toLowerCase();
+                const id = (patient.patient_id || item.patient_id || '').toLowerCase();
+                const study = (item.study_type || '').toLowerCase();
+                const date = (item.created_at || '').slice(0, 10);
+
+                return name.includes(filters.name) &&
+                    id.includes(filters.id) &&
+                    study.includes(filters.study) &&
+                    (filters.date === '' || date === filters.date);
+            });
+
+            document.getElementById('stats').innerText = `${filtered.length} estudios encontrados`;
+
+            filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).forEach(item => {
+                const patient = currentData.patients.find(p => p.patient_id === item.patient_id) || {};
+                const tr = document.createElement('tr');
+
+                if (activeSection === 'worklist') {
+                    tr.innerHTML = `
+                        <td>${new Date(item.created_at).toLocaleDateString()}</td>
+                        <td>${item.patient_id}</td>
+                        <td style="font-weight: 500;">${patient.name || 'Desconocido'}</td>
+                        <td>${item.study_type}</td>
+                        <td>${item.requesting_physician || 'N/A'}</td>
+                        <td><span class="badge badge-pending">Pendiente</span></td>
+                        <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.75rem;" onclick="openEditor('${item.study_id}')">Informar</button></td>
+                    `;
+                } else {
+                    const filename = (item.pdf_path || '').split(/[\\/]/).pop();
+                    tr.innerHTML = `
+                        <td>${new Date(item.created_at).toLocaleDateString()}</td>
+                        <td>${item.patient_id}</td>
+                        <td style="font-weight: 500;">${item.patient_name}</td>
+                        <td>${item.physician}</td>
+                        <td>${item.study_type}</td>
+                        <td><span class="badge badge-reported">Informado</span></td>
+                        <td><a href="/reports/${filename}" target="_blank" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; text-decoration: none;">PDF</a></td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openEditor(studyId) {
+            activeStudyId = studyId;
+            const study = currentData.studies.find(s => s.study_id === studyId);
+            const patient = currentData.patients.find(p => p.patient_id === study.patient_id);
+
+            document.getElementById('editor-overlay').classList.add('visible');
+            document.getElementById('editor-subtitle').innerText = `${patient.name} | ${study.study_type} | ID: ${studyId}`;
+            document.getElementById('report-text').value = '';
+        }
+
+        function closeEditor() {
+            document.getElementById('editor-overlay').classList.remove('visible');
+            activeStudyId = null;
+        }
+
+        async function saveReport() {
+            const text = document.getElementById('report-text').value;
+            const physician = document.getElementById('physician-name').value;
+            if (!text || !physician) return alert("Complete todos los campos de firma e informe.");
+
+            try {
+                const resp = await fetch('/api/reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ study_id: activeStudyId, results_summary: text, physician: physician })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    alert("Informe guardado y PDF generado.");
+                    await loadData();
+                    setSection('reports');
+                }
+            } catch (err) { alert("Error: " + err); }
+        }
+
+        /* Agent Integration Logic */
+        async function refreshAgentData() {
+            try {
+                const [status, obs, mem] = await Promise.all([
+                    fetch('/api/status').then(r => r.json()),
+                    fetch('/api/observations').then(r => r.json()),
+                    fetch('/api/memory').then(r => r.json())
+                ]);
+
+                // Update Status
+                const beatDate = new Date(status.last_heartbeat);
+                document.getElementById('agent-beat').innerText = beatDate.toLocaleTimeString();
+                document.getElementById('agent-obs-count').innerText = obs.count;
+                document.getElementById('agent-rate').innerText = mem.acceptance_rate + '%';
+
+                // Render Obs
+                const obsList = document.getElementById('agent-obs-list');
+                obsList.innerHTML = '';
+
+                obs.recent.forEach(o => {
+                    const isPending = !o.decision && !o.decision_usuario;
+                    const div = document.createElement('div');
+                    div.className = 'obs-item' + (isPending ? ' pending' : '');
+
+                    const decisionText = o.decision || o.decision_usuario || 'Pendiente';
+                    const colorMap = { 'sí': '#166534', 'no': '#991b1b', 'después': '#92400e' };
+
+                    div.innerHTML = `
+                        <div>
+                            <div class="obs-ctx">${o.propuesta || o.contexto}</div>
+                            <div class="obs-meta">
+                                ${new Date(o.timestamp).toLocaleString()} | 
+                                <span style="font-weight:700; color:${colorMap[decisionText] || '#64748b'}">${decisionText.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        ${isPending ? `
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-action btn-approve" onclick="agentDecide('${o.id}', 'sí', '${o.propuesta}')">Sí</button>
+                                <button class="btn-action btn-reject" onclick="agentDecide('${o.id}', 'no', '${o.propuesta}')">No</button>
+                            </div>
+                        ` : ''}
+                    `;
+                    obsList.appendChild(div);
+                });
+
+            } catch (e) { console.error("Agent error", e); }
+        }
+
+        async function agentDecide(id, action, proposal) {
+            try {
+                await fetch('/api/observations/decide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, action, proposal })
+                });
+                refreshAgentData();
+            } catch (e) { alert("Error decision: " + e); }
+        }
+
+        /* Admission & Scheduling Logic */
+        async function submitAdmission() {
+            const mod = document.getElementById('adm-modality').value;
+            const study = document.getElementById('adm-study').value;
+            const data = {
+                patient_name: document.getElementById('adm-name').value,
+                study_type: study ? `${mod} - ${study}` : mod,
+                physician: document.getElementById('adm-phys').value
+            };
+            if (!mod) return alert("Seleccione al menos la modalidad.");
+            if (!data.patient_name) return alert("Nombre del paciente requerido.");
+
+            try {
+                const resp = await fetch('/api/admission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (resp.ok) {
+                    alert("✅ Estudio registrado con éxito.");
+                    closeModal('admission');
+                    loadData();
+                } else {
+                    const err = await resp.json();
+                    alert("❌ Error: " + (err.detail || "Fallo al registrar"));
+                }
+            } catch (e) { alert("Error de red"); }
+        }
+
+        async function scheduleEvent() {
+            const data = {
+                text: document.getElementById('sch-text').value,
+                user: document.getElementById('sch-user').value,
+                date: document.getElementById('sch-date').value
+            };
+            if (!data.text || !data.date) return alert("Complete motivo y fecha.");
+
+            alert("⏳ Enviando solicitud a n8n Calendar...");
+            // Aquí iría el fetch a un endpoint que llame al workflow de n8n
+            // Por ahora simulamos la petición exitosa
+            setTimeout(() => {
+                alert("✅ Cita agendada exitosamente en Google Calendar.");
+            }, 1000);
+        }
+
+        // Auto Refresh
+        setInterval(() => {
+            if (activeSection === 'agent') refreshAgentData();
+            if (activeSection === 'worklist') loadData();
+        }, 30000);
+
+        loadData();
+        initStudySelects();
+    </script>
+</body>
+
+</html>

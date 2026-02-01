@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>El Operador — Dashboard</title>
     <meta name="description" content="Dashboard read-only del agente persistente El Operador">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
@@ -21,6 +24,7 @@
                 </div>
             </div>
             <div class="header-right">
+                <button class="btn-primary" id="btn-new-study">➕ Nuevo Estudio</button>
                 <div class="status-badge" id="status-badge">
                     <span class="status-dot"></span>
                     <span class="status-text">Conectando...</span>
@@ -133,7 +137,8 @@
         <footer class="footer">
             <div class="footer-hint">
                 <span class="footer-icon">💡</span>
-                <p>Este dashboard es <strong>read-only</strong>. El Operador solo observa, no ejecuta acciones desde aquí.</p>
+                <p>Este dashboard es <strong>read-only</strong>. El Operador solo observa, no ejecuta acciones desde
+                    aquí.</p>
             </div>
             <div class="footer-meta">
                 <span id="refresh-time">Actualizado: --</span>
@@ -141,6 +146,43 @@
         </footer>
     </div>
 
+    <!-- Admission Modal -->
+    <div class="modal-overlay" id="modal-admission">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📋 Nueva Admision de Estudio</h2>
+                <button class="btn-close" id="btn-close-modal">&times;</button>
+            </div>
+            <form id="form-admission" class="form">
+                <div class="form-group">
+                    <label for="patient_name">Nombre del Paciente</label>
+                    <input type="text" id="patient_name" name="patient_name" placeholder="Ej: Juan Perez" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="study_type">Tipo de Estudio</label>
+                        <input type="text" id="study_type" name="study_type" placeholder="Ej: TAC de Torax" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="physician">Medico Solicitante</label>
+                        <input type="text" id="physician" name="physician" placeholder="Ej: Dr. Gomez">
+                    </div>
+                    <div class="form-group">
+                        <label for="region">Region (Opcional)</label>
+                        <input type="text" id="region" name="region" placeholder="Ej: Abdomen">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btn-cancel-admission">Cancelar</button>
+                    <button type="submit" class="btn-primary">Registrar Estudio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
+
 </html>

@@ -1,13 +1,26 @@
 import asyncio
 import httpx
-
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+# Cargar variables de entorno
+BASE_DIR = Path(__file__).parent
+load_dotenv(BASE_DIR / ".env")
+
 async def main():
+    api_token = os.getenv("N8N_API_TOKEN")
+    if not api_token:
+        print("Error: N8N_API_TOKEN no encontrado en .env")
+        return
+
     headers = {
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmNDI1ODIxNC1jMDM5LTQwYTctYWMzYy01MWQxZTBiNWY0ZTgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5ODMwMTc4fQ.ptyrZ_3zxYioT8wt_DE0BarK5QSRjAmYNdHs_fFaHgI"
+        "Authorization": f"Bearer {api_token}"
     }
+
+    mcp_url = os.getenv("N8N_MCP_URL", "https://eco.dxarte.org/mcp-server/http")
 
     async with httpx.AsyncClient(
         headers=headers,
@@ -15,7 +28,7 @@ async def main():
     ) as http_client:
 
         async with streamable_http_client(
-            "https://eco.dxarte.org/mcp-server/http",
+            mcp_url,
             http_client=http_client,
         ) as (read, write, close):
 

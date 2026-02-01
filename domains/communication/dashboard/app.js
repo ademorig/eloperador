@@ -22,7 +22,13 @@ const elements = {
     statRejected: document.getElementById('stat-rejected'),
     statDeferred: document.getElementById('stat-deferred'),
     statModified: document.getElementById('stat-modified'),
-    refreshTime: document.getElementById('refresh-time')
+    refreshTime: document.getElementById('refresh-time'),
+    // Modal elements
+    btnNewStudy: document.getElementById('btn-new-study'),
+    modalAdmission: document.getElementById('modal-admission'),
+    btnCloseModal: document.getElementById('btn-close-modal'),
+    btnCancelAdmission: document.getElementById('btn-cancel-admission'),
+    formAdmission: document.getElementById('form-admission')
 };
 
 /**
@@ -96,22 +102,39 @@ async function updateObservations() {
 
     if (data.recent && data.recent.length > 0) {
         elements.observationsList.innerHTML = data.recent.map(obs => {
+            const isPending = !obs.decision && !obs.decision_usuario;
+
+            let actionsHtml = '';
+            if (isPending) {
+                actionsHtml = `
+                    <div class="observation-actions">
+                        <button class="btn-action approve" onclick="makeDecision('${obs.id}', 'sí', '${obs.propuesta || obs.contexto}')">Aprobar</button>
+                        <button class="btn-action reject" onclick="makeDecision('${obs.id}', 'no', '${obs.propuesta || obs.contexto}')">Ignorar</button>
+                        <button class="btn-action defer" onclick="makeDecision('${obs.id}', 'después', '${obs.propuesta || obs.contexto}')">Diferir</button>
+                    </div>
+                `;
+            }
+
             const decisionClass =
-                obs.decision_usuario === 'sí' ? 'accepted' :
-                    obs.decision_usuario === 'no' ? 'rejected' : 'deferred';
+                (obs.decision || obs.decision_usuario) === 'sí' ? 'accepted' :
+                    (obs.decision || obs.decision_usuario) === 'no' ? 'rejected' : 'deferred';
 
             const decisionLabel =
-                obs.decision_usuario === 'sí' ? '✓ Sí' :
-                    obs.decision_usuario === 'no' ? '✗ No' :
-                        obs.decision_usuario === 'después' ? '⏳ Después' : '✏️ Mod';
+                (obs.decision || obs.decision_usuario) === 'sí' ? '✓ Sí' :
+                    (obs.decision || obs.decision_usuario) === 'no' ? '✗ No' :
+                        (obs.decision || obs.decision_usuario) === 'después' ? '⏳ Después' :
+                            (obs.decision || obs.decision_usuario) === 'modificar' ? '✏️ Mod' : 'Pendiente';
 
             return `
-                <div class="observation-item">
-                    <div class="observation-context">${escapeHtml(obs.propuesta || obs.contexto || 'Sin contexto')}</div>
-                    <div class="observation-meta">
-                        <span>${formatRelativeTime(obs.timestamp)}</span>
-                        <span class="observation-decision ${decisionClass}">${decisionLabel}</span>
+                <div class="observation-item ${isPending ? 'pending' : ''}">
+                    <div class="observation-content">
+                        <div class="observation-context">${escapeHtml(obs.propuesta || obs.contexto || 'Sin contexto')}</div>
+                        <div class="observation-meta">
+                            <span>${formatRelativeTime(obs.timestamp)}</span>
+                            ${!isPending ? `<span class="observation-decision ${decisionClass}">${decisionLabel}</span>` : ''}
+                        </div>
                     </div>
+                    ${actionsHtml}
                 </div>
             `;
         }).join('');
@@ -178,9 +201,32 @@ async function updateMemory() {
  * Escape HTML to prevent XSS
  */
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Make a decision on an observation
+ */
+async function makeDecision(obsId, action, proposal) {
+    try {
+        const response = await fetch(`${API_BASE}/observations/decide`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: obsId, action, proposal })
+        });
+
+        if (response.ok) {
+            console.log(`✓ Decision ${action} recorded for ${obsId}`);
+            await refreshDashboard();
+        } else {
+            console.error('Failed to record decision');
+        }
+    } catch (error) {
+        console.error('Error making decision:', error);
+    }
 }
 
 /**
@@ -205,10 +251,64 @@ async function refreshDashboard() {
 }
 
 /**
+ * Modal Management
+ */
+function openModal() {
+    elements.modalAdmission.classList.add('active');
+    elements.formAdmission.reset();
+}
+
+function closeModal() {
+    elements.modalAdmission.classList.remove('active');
+}
+
+/**
+ * Handle new study admission
+ */
+async function handleAdmission(event) {
+    event.preventDefault();
+
+    const formData = new FormData(elements.formAdmission);
+    const data = {
+        patient_name: formData.get('patient_name'),
+        study_type: formData.get('study_type'),
+        physician: formData.get('physician') || 'No especificado',
+        region: formData.get('region') || ''
+    };
+
+    try {
+        const response = await fetch(`${API_BASE}/admission`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(`✅ Estudio registrado: ${result.study_id}`);
+            closeModal();
+            await refreshDashboard();
+        } else {
+            const error = await response.json();
+            alert(`❌ Error: ${error.detail || 'Fallo al registrar'}`);
+        }
+    } catch (error) {
+        console.error('Error in admission:', error);
+        alert('❌ Error de red al registrar estudio');
+    }
+}
+
+/**
  * Initialize dashboard
  */
 async function init() {
     console.log('⚙️ El Operador Dashboard - Initializing...');
+
+    // Event Listeners
+    elements.btnNewStudy.addEventListener('click', openModal);
+    elements.btnCloseModal.addEventListener('click', closeModal);
+    elements.btnCancelAdmission.addEventListener('click', closeModal);
+    elements.formAdmission.addEventListener('submit', handleAdmission);
 
     // Initial load
     await refreshDashboard();

@@ -92,7 +92,7 @@
         },
         {
             "parameters": {
-                "jsCode": "return {\n  summary: \"Resumen del turno de radiología generado exitosamente.\",\n  calendarEvents: $node[\"Google Calendar Search\"].json,\n  urgentEmails: $node[\"Gmail Search\"].json\n};"
+                "jsCode": "const statusMap = {\n  'P01': 'Recepción',\n  'P06': 'Para informar',\n  'P08': 'Informe firmado'\n};\n\nreturn {\n  summary: \"Resumen del turno de radiología generado exitosamente.\",\n  calendarEvents: $node[\"Google Calendar Search\"].json,\n  urgentEmails: $node[\"Gmail Search\"].json,\n  standard_states: statusMap\n};"
             },
             "id": "rad-5",
             "name": "Format Output",

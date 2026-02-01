@@ -27,9 +27,17 @@ Este documento define la estructura, gobernanza y dominios funcionales del works
 - **Estado**: **CRÍTICO / SENSIBLE**.
 - **Restricción**: Solo lectura para procesos automáticos no verificados. No mover lógica sin validación médica.
 
-### 📄 Reportes de Pacientes (`domains/patient_reports`)
+### � Gestión de Pacientes (`domains/patients`)
+- **Responsabilidad**: Identidad demográfica y clasificación de pacientes (internos/externos).
+- **Estado**: Activo / Persistencia implementada.
+
+### 🔬 Gestión de Estudios (`domains/studies`)
+- **Responsabilidad**: Ciclo de vida de órdenes médicas y vinculación con pacientes.
+- **Estado**: Activo / Flujo excepcional integrado.
+
+### �📄 Reportes de Pacientes (`domains/patient_reports`)
 - **Responsabilidad**: Generación y entrega proactiva de informes a pacientes.
-- **Estado**: Estructura lista / En desarrollo.
+- **Estado**: Base establecida / Prototipo Mock funcional.
 
 ## 3. Estructura del Sistema (Gobernanza)
 
